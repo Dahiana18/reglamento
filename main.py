@@ -1,10 +1,40 @@
 import tkinter as tk
-from tkinter import messagebox
 from docx import Document
-from docx.shared import Pt  # Para establecer el tamaño de fuente
-from docx.oxml import OxmlElement  # Para estilos de texto (negrita)
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
 
-def reemplazar_datos_en_plantilla(nombre, municipio, departamento,horarios):
+def insertar_tabla(doc, paragraph, horarios):
+    # Añadir una tabla con 2 columnas y tantas filas como elementos en horarios
+    table = doc.add_table(rows=1, cols=2)
+    
+    # Añadir encabezados
+    hdr_cells = table.rows[0].cells
+    hdr_cells[0].text = 'Tipo de Horario'
+    hdr_cells[1].text = 'Horario'
+    
+    # Añadir filas con datos
+    for horario in horarios:
+        row_cells = table.add_row().cells
+        row_cells[0].text = horario
+        row_cells[1].text = ''
+    
+    # Mover la tabla al lugar correcto
+    tbl = table._tbl
+    paragraph._element.addnext(tbl)
+
+    # Añadir bordes a la tabla
+    tbl = table._tbl
+    tblBorders = OxmlElement('w:tblBorders')
+    for border_name in ['top', 'left', 'bottom', 'right', 'insideH', 'insideV']:
+        border = OxmlElement(f'w:{border_name}')
+        border.set(qn('w:val'), 'single')
+        border.set(qn('w:sz'), '4')
+        border.set(qn('w:space'), '0')
+        border.set(qn('w:color'), '000000')
+        tblBorders.append(border)
+    tbl.tblPr.append(tblBorders)
+
+def reemplazar_datos_en_plantilla(nombre, municipio, departamento, horarios):
     # Cargar el documento de Word
     doc = Document('template.docx')
     
@@ -13,39 +43,45 @@ def reemplazar_datos_en_plantilla(nombre, municipio, departamento,horarios):
 
     # Recorrer todos los párrafos y reemplazar las palabras clave
     for p in doc.paragraphs:
-        for run in p.runs:
-            if "NOMBRE" in run.text:
-                # Reemplazar "NOMBRE" con el nombre ingresado en mayúsculas
-                run.text = run.text.replace('|NOMBRE|', nombre)
-                run.bold = True  # Aplicar negrita al run modificado
+        if "|NOMBRE|" in p.text:
+            p.text = p.text.replace('|NOMBRE|', nombre)
+            for run in p.runs:
+                if nombre in run.text:
+                    run.bold = True  # Aplicar negrita al run modificado
 
-            if "MUNICIPIO" in run.text:
-                run.text = run.text.replace('|MUNICIPIO|', municipio)
+        if "|MUNICIPIO|" in p.text:
+            p.text = p.text.replace('|MUNICIPIO|', municipio)
+        
+        if "|DEPARTAMENTO|" in p.text:
+            p.text = p.text.replace('|DEPARTAMENTO|', departamento)
             
-            if "DEPARTAMENTO" in run.text:
-                run.text = run.text.replace('|DEPARTAMENTO|', departamento)
-                
-            if "HORARIO" in run.text:
-                run.text = run.text.replace('|HORARIO|', horarios)
+        if "|HORARIO|" in p.text:
+            p.text = p.text.replace('|HORARIO|', "")
+            insertar_tabla(doc, p, horarios)
+            break  # Salir del bucle después de insertar la tabla
 
     # Guardar el documento modificado
     doc.save('documento_completado.docx')
-    doc = Document('documento_completado.docx')
-    for p in doc.paragraphs:
-        for run in p.runs:
-            if nombre.upper() in run.text:
-                # Aplicar diferentes estilos
-                run.text = run.text.replace(nombre.upper(), nombre.upper())  # Cambiar a mayúsculas
-                run.bold = True   # Aplicar negrita
-                run.italic = False  # Aplicar cursiva
-                run.underline = False  # Aplicar subrayado
-                run.font.size = Pt(11)  # Cambiar tamaño de fuente a 14 puntos
 
-    # Guardar el documento modificado
-    nuevo_nombre_archivo = 'documento_completado.docx'
-    doc.save(nuevo_nombre_archivo)
+def generar_tabla():
+    global table_frame  # Asegúrate de que table_frame esté accesible
+    for widget in table_frame.winfo_children():
+        widget.destroy()
     
-    messagebox.showinfo("Éxito", "El documento ha sido generado exitosamente.")
+    row = 0
+    tk.Label(table_frame, text="Tipo de Horario").grid(row=row, column=0)
+    tk.Label(table_frame, text="Horario").grid(row=row, column=1)
+    row += 1
+    
+    if operativo_var.get():
+        tk.Label(table_frame, text="Horario de trabajo personal operativo").grid(row=row, column=0)
+        tk.Label(table_frame, text="").grid(row=row, column=1)
+        row += 1
+    
+    if administrativo_var.get():
+        tk.Label(table_frame, text="Horario de trabajo personal administrativo").grid(row=row, column=0)
+        tk.Label(table_frame, text="").grid(row=row, column=1)
+        row += 1
 
 def crear_formulario():
     # Crear la ventana principal
@@ -68,6 +104,7 @@ def crear_formulario():
     # Checkbuttons para seleccionar horario de trabajo
     tk.Label(ventana, text="Horario de trabajo:").grid(row=3, column=0)
     
+    global operativo_var, administrativo_var, table_frame
     operativo_var = tk.IntVar()
     administrativo_var = tk.IntVar()
 
@@ -89,16 +126,22 @@ def crear_formulario():
         if administrativo_var.get():
             horarios.append("Horario de trabajo personal administrativo")
         
-        horarios_str = ', '.join(horarios) if horarios else "Ninguno"
+        # Generar la tabla automáticamente
+        generar_tabla()
 
-        reemplazar_datos_en_plantilla(nombre, municipio, departamento, horarios_str)
+        reemplazar_datos_en_plantilla(nombre, municipio, departamento, horarios)
 
     # Botón para enviar el formulario
     submit_button = tk.Button(ventana, text="Generar Documento", command=on_submit)
     submit_button.grid(row=5, columnspan=2)
 
+    # Crear un frame para la tabla
+    global table_frame  # Asegúrate de que table_frame esté accesible
+    table_frame = tk.Frame(ventana)
+    table_frame.grid(row=6, column=0, columnspan=2)
+
     # Iniciar el bucle de la aplicación Tkinter
     ventana.mainloop()
 
-if __name__ == "__main__":
-    crear_formulario()
+# Llamar a la función para crear el formulario
+crear_formulario()
