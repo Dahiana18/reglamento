@@ -1,7 +1,11 @@
 import tkinter as tk
+from tkinter import ttk
 from docx import Document
 from docx.oxml import OxmlElement
+from docx.shared import RGBColor
 from docx.oxml.ns import qn
+
+
 
 def insertar_tabla(doc, paragraph, horarios):
     # Añadir una tabla con 2 columnas y tantas filas como elementos en horarios
@@ -34,31 +38,46 @@ def insertar_tabla(doc, paragraph, horarios):
         tblBorders.append(border)
     tbl.tblPr.append(tblBorders)
 
-def reemplazar_datos_en_plantilla(nombre, municipio, departamento, horarios):
+def reemplazar_datos_en_plantilla(nombre, municipio, departamento, objeto_social, fecha_pago, horarios):
     # Cargar el documento de Word
     doc = Document('template.docx')
     
     # Convertir 'nombre' a mayúsculas
     nombre = nombre.upper()
 
+    print(f"Valor de fecha_pago: {fecha_pago}")
+
     # Recorrer todos los párrafos y reemplazar las palabras clave
     for p in doc.paragraphs:
-        if "|NOMBRE|" in p.text:
-            p.text = p.text.replace('|NOMBRE|', nombre)
-            for run in p.runs:
-                if nombre in run.text:
-                    run.bold = True  # Aplicar negrita al run modificado
+        for run in p.runs:
+            if "|NOMBRE|" in run.text:
+                run.text = run.text.replace('|NOMBRE|', nombre)
+                run.bold = True  # Aplicar negrita al run modificado
 
-        if "|MUNICIPIO|" in p.text:
-            p.text = p.text.replace('|MUNICIPIO|', municipio)
-        
-        if "|DEPARTAMENTO|" in p.text:
-            p.text = p.text.replace('|DEPARTAMENTO|', departamento)
+            if "|MUNICIPIO|" in run.text:
+                run.text = run.text.replace('|MUNICIPIO|', municipio)
             
+            if "|DEPARTAMENTO|" in run.text:
+                run.text = run.text.replace('|DEPARTAMENTO|', departamento)
+
+            if "|FECHA_PAGO|" in run.text:
+                print(f"Encontrado |FECHA_PAGO| en: {run.text}")  # Mensaje de depuración
+                run.text = run.text.replace('|FECHA_PAGO|', fecha_pago)
+                print(f"Reemplazado por: {run.text}")  # Mensaje de depuración  
+
+            if "|OBJETO_SOCIAL|" in run.text and isinstance(objeto_social, str):
+                run.text = run.text.replace('|OBJETO_SOCIAL|', objeto_social) 
+
+                    
+            
+
+    for p in doc.paragraphs:
+
         if "|HORARIO|" in p.text:
             p.text = p.text.replace('|HORARIO|', "")
             insertar_tabla(doc, p, horarios)
             break  # Salir del bucle después de insertar la tabla
+        
 
     # Guardar el documento modificado
     doc.save('documento_completado.docx')
@@ -83,62 +102,103 @@ def generar_tabla():
         tk.Label(table_frame, text="").grid(row=row, column=1)
         row += 1
 
-def crear_formulario():
+
+
+
+def crear_formulario():  
+
+    global nombre_entry, municipio_entry, departamento_entry, fecha_pago_entry, operativo_var, administrativo_var, objeto_social_entry, table_frame
+   
+
+    font_style = ("Helvetica", 24, "italic")
+    bg_color = '#b0d4ec'    
+
     # Crear la ventana principal
     ventana = tk.Tk()
     ventana.title("Formulario de Datos")
-    
-    # Etiquetas y campos de entrada para Nombre, Municipio, Departamento
-    tk.Label(ventana, text="Nombre:").grid(row=0, column=0)
-    nombre_entry = tk.Entry(ventana)
-    nombre_entry.grid(row=0, column=1)
+    ventana.configure(bg= bg_color)
 
-    tk.Label(ventana, text="Municipio:").grid(row=1, column=0)
-    municipio_entry = tk.Entry(ventana)
-    municipio_entry.grid(row=1, column=1)
+    # Frame para los datos personales (Nombre, Municipio, Departamento)
+    frame_datos = tk.Frame(ventana, bg=bg_color)
+    frame_datos.pack(padx=10, pady=10)
 
-    tk.Label(ventana, text="Departamento:").grid(row=2, column=0)
-    departamento_entry = tk.Entry(ventana)
-    departamento_entry.grid(row=2, column=1)
+    tk.Label(frame_datos, text="Nombre Empresa:", font=font_style, bg=bg_color).grid(row=0, column=0)
+    nombre_entry = tk.Entry(frame_datos, font=font_style)
+    nombre_entry.grid(row=0, column=1, padx=(0, 20))
+
+    tk.Label(frame_datos, text="Departamento:", font=font_style, bg=bg_color).grid(row=0, column=2)
+    departamento_entry = tk.Entry(frame_datos, font=font_style)
+    departamento_entry.grid(row=0, column=3, padx=(0, 20))
+
+    tk.Label(frame_datos, text="Municipio:", font=font_style, bg=bg_color).grid(row=0, column=4)
+    municipio_entry = tk.Entry(frame_datos, font=font_style)
+    municipio_entry.grid(row=0, column=5, pady=20)   
+
+
+    tk.Label(frame_datos, text="Objeto Social:", font=font_style, bg=bg_color).grid(row=1, column=0)
+    objeto_social_entry = tk.Entry(frame_datos, font=font_style)
+    objeto_social_entry.grid(row=1, column=1, columnspan=5, sticky="we", pady=20)
+
+    tk.Label(frame_datos, text="Fecha de Pago:", font=font_style, bg=bg_color).grid(row=2, column=0)
+    opciones_pago = ["los días 30 de cada mes", "los días 15 y 30 de cada mes", "catorcenales", "semanales"]
+    fecha_pago_entry = ttk.Combobox(frame_datos, values=opciones_pago, font=font_style, state="readonly")
+    fecha_pago_entry.grid(row=2, column=1,columnspan=5, sticky="we", pady=20)
+    fecha_pago_entry.set("Seleccione una opción")
+
+    # Configurar la fuente del menú desplegable
+    ventana.option_add('*TCombobox*Listbox.font', font_style)   
     
-    # Checkbuttons para seleccionar horario de trabajo
-    tk.Label(ventana, text="Horario de trabajo:").grid(row=3, column=0)
-    
-    global operativo_var, administrativo_var, table_frame
+
+    # Frame para los checkbuttons (Horario de trabajo)
+    frame_horarios = tk.Frame(ventana)
+    frame_horarios.pack(padx=10, pady=10)
+
+    tk.Label(frame_horarios, text="Horario de trabajo:").grid(row=0, column=0)
+
     operativo_var = tk.IntVar()
     administrativo_var = tk.IntVar()
 
-    operativo_cb = tk.Checkbutton(ventana, text="Horario de trabajo personal operativo", variable=operativo_var)
-    operativo_cb.grid(row=3, column=1, sticky="w")
+    operativo_cb = tk.Checkbutton(frame_horarios, text="Horario de trabajo personal operativo", variable=operativo_var)
+    operativo_cb.grid(row=1, column=0, sticky="w")
 
-    administrativo_cb = tk.Checkbutton(ventana, text="Horario de trabajo personal administrativo", variable=administrativo_var)
-    administrativo_cb.grid(row=4, column=1, sticky="w")
+    administrativo_cb = tk.Checkbutton(frame_horarios, text="Horario de trabajo personal administrativo", variable=administrativo_var)
+    administrativo_cb.grid(row=2, column=0, sticky="w")
 
-    def on_submit():
+    
+
+    # Función para manejar el envío de datos
+    def on_submit():        
+
         nombre = nombre_entry.get()
         municipio = municipio_entry.get()
         departamento = departamento_entry.get()
-        
+        objeto_social = objeto_social_entry.get()
+        fecha_pago = fecha_pago_entry.get()
+
         # Construir la cadena de horarios seleccionados
         horarios = []
         if operativo_var.get():
             horarios.append("Horario de trabajo personal operativo")
         if administrativo_var.get():
             horarios.append("Horario de trabajo personal administrativo")
-        
+
         # Generar la tabla automáticamente
         generar_tabla()
 
-        reemplazar_datos_en_plantilla(nombre, municipio, departamento, horarios)
+        # Reemplazar datos en la plantilla
+        reemplazar_datos_en_plantilla(nombre, municipio, departamento, objeto_social, fecha_pago, horarios)
+
+    # Frame para el botón de enviar
+    frame_botones = tk.Frame(ventana)
+    frame_botones.pack(padx=10, pady=10)
 
     # Botón para enviar el formulario
-    submit_button = tk.Button(ventana, text="Generar Documento", command=on_submit)
-    submit_button.grid(row=5, columnspan=2)
-
-    # Crear un frame para la tabla
-    global table_frame  # Asegúrate de que table_frame esté accesible
+    submit_button = tk.Button(frame_botones, text="Generar Documento", command=on_submit)
+    submit_button.grid(row=0, column=0)
+    
+    # Frame para la tabla
     table_frame = tk.Frame(ventana)
-    table_frame.grid(row=6, column=0, columnspan=2)
+    table_frame.pack(padx=10, pady=10)
 
     # Iniciar el bucle de la aplicación Tkinter
     ventana.mainloop()
