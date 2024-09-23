@@ -20,7 +20,7 @@ def insertar_tabla(doc, paragraph, horarios):
     for horario in horarios:
         row_cells = table.add_row().cells
         row_cells[0].text = horario
-        row_cells[1].text = ''
+        row_cells[1].text = horario
     
     # Mover la tabla al lugar correcto
     tbl = table._tbl
@@ -82,24 +82,35 @@ def reemplazar_datos_en_plantilla(nombre, municipio, departamento, objeto_social
     # Guardar el documento modificado
     doc.save('documento_completado.docx')
 
+entry_widgets = []    
+
 def generar_tabla():
     global table_frame  # Asegúrate de que table_frame esté accesible
     for widget in table_frame.winfo_children():
         widget.destroy()
+
+    entry_widgets = [] 
     
     row = 0
-    tk.Label(table_frame, text="Tipo de Horario").grid(row=row, column=0)
-    tk.Label(table_frame, text="Horario").grid(row=row, column=1)
+    font_settings = ("Helvetica", 24)
+    entry_width = 30
+
+    tk.Label(table_frame, text="Tipo de Horario",font=font_settings).grid(row=row, column=0)
+    tk.Label(table_frame, text="Horario",font=font_settings).grid(row=row, column=1)
     row += 1
     
     if operativo_var.get():
-        tk.Label(table_frame, text="Horario de trabajo personal operativo").grid(row=row, column=0)
-        tk.Label(table_frame, text="").grid(row=row, column=1)
+        tk.Label(table_frame, text="Horario de trabajo personal operativo", font=font_settings).grid(row=row, column=0)
+        entry = tk.Entry(table_frame, font=font_settings, width=entry_width)
+        entry.grid(row=row, column=1)
+        entry_widgets.append(("Horario de trabajo personal operativo", entry))
         row += 1
-    
+
     if administrativo_var.get():
-        tk.Label(table_frame, text="Horario de trabajo personal administrativo").grid(row=row, column=0)
-        tk.Label(table_frame, text="").grid(row=row, column=1)
+        tk.Label(table_frame, text="Horario de trabajo personal administrativo", font=font_settings).grid(row=row, column=0)
+        entry = tk.Entry(table_frame, font=font_settings, width=entry_width)
+        entry.grid(row=row, column=1)
+        entry_widgets.append(("Horario de trabajo personal administrativo", entry))
         row += 1
 
 
@@ -158,12 +169,17 @@ def crear_formulario():
     operativo_var = tk.IntVar()
     administrativo_var = tk.IntVar()
 
-    operativo_cb = tk.Checkbutton(frame_horarios, text="Horario de trabajo personal operativo", variable=operativo_var)
+    operativo_cb = tk.Checkbutton(frame_horarios, text="Horario de trabajo personal operativo", variable=operativo_var, command=lambda: generar_tabla())
     operativo_cb.grid(row=1, column=0, sticky="w")
 
-    administrativo_cb = tk.Checkbutton(frame_horarios, text="Horario de trabajo personal administrativo", variable=administrativo_var)
+    administrativo_cb = tk.Checkbutton(frame_horarios, text="Horario de trabajo personal administrativo", variable=administrativo_var, command=lambda: generar_tabla())
     administrativo_cb.grid(row=2, column=0, sticky="w")
 
+
+
+    # Frame para la tabla
+    table_frame = tk.Frame(ventana)
+    table_frame.pack(padx=10, pady=10)
     
 
     # Función para manejar el envío de datos
