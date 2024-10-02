@@ -4,8 +4,7 @@ from docx import Document
 from docx.oxml import OxmlElement
 from docx.shared import RGBColor
 from docx.oxml.ns import qn
-
-
+from tkinter import messagebox
 
 def insertar_tabla(doc, paragraph, horarios):
     # Añadir una tabla con 2 columnas y tantas filas como elementos en horarios
@@ -37,8 +36,15 @@ def insertar_tabla(doc, paragraph, horarios):
         border.set(qn('w:color'), '000000')
         tblBorders.append(border)
     tbl.tblPr.append(tblBorders)
+    
+def capturar_orden_jerarquico(orden_jerarquico_vars):
+    seleccionados = []
+    for rol, var in orden_jerarquico_vars.items():
+        if var.get():
+            seleccionados.append(rol)
+    return seleccionados
 
-def reemplazar_datos_en_plantilla(nombre, municipio, departamento, objeto_social, fecha_pago, horarios):
+def reemplazar_datos_en_plantilla(nombre, municipio, departamento, objeto_social, fecha_pago, horarios, orden_jerarquico):
     # Cargar el documento de Word
     doc = Document('template.docx')
     
@@ -67,6 +73,9 @@ def reemplazar_datos_en_plantilla(nombre, municipio, departamento, objeto_social
 
             if "|OBJETO_SOCIAL|" in run.text and isinstance(objeto_social, str):
                 run.text = run.text.replace('|OBJETO_SOCIAL|', objeto_social) 
+            
+            if "|ORDEN_JERARQUICO|" in p.text:
+                p.text = p.text.replace("|ORDEN_JERARQUICO|", ", ".join(orden_jerarquico))
 
                     
             
@@ -82,7 +91,7 @@ def reemplazar_datos_en_plantilla(nombre, municipio, departamento, objeto_social
     # Guardar el documento modificado
     doc.save('documento_completado.docx')
 
-entry_widgets = []    
+entry_widgets = [] 
 
 def generar_tabla():
     global table_frame  # Asegúrate de que table_frame esté accesible
@@ -92,7 +101,7 @@ def generar_tabla():
     entry_widgets = [] 
     
     row = 0
-    font_settings = ("Helvetica", 24)
+    font_settings = ("Helvetica", 14)
     entry_width = 30
 
     tk.Label(table_frame, text="Tipo de Horario",font=font_settings).grid(row=row, column=0)
@@ -113,111 +122,171 @@ def generar_tabla():
         entry_widgets.append(("Horario de trabajo personal administrativo", entry))
         row += 1
 
-
-
-
 def crear_formulario():  
 
     global nombre_entry, municipio_entry, departamento_entry, fecha_pago_entry, operativo_var, administrativo_var, objeto_social_entry, table_frame
-   
-
-    font_style = ("Helvetica", 24, "italic")
-    bg_color = '#b0d4ec'    
-
-    # Crear la ventana principal
-    ventana = tk.Tk()
-    ventana.title("Formulario de Datos")
-    ventana.configure(bg= bg_color)
-
-    # Frame para los datos personales (Nombre, Municipio, Departamento)
-    frame_datos = tk.Frame(ventana, bg=bg_color)
-    frame_datos.pack(padx=10, pady=10)
-
-    tk.Label(frame_datos, text="Nombre Empresa:", font=font_style, bg=bg_color).grid(row=0, column=0)
-    nombre_entry = tk.Entry(frame_datos, font=font_style)
-    nombre_entry.grid(row=0, column=1, padx=(0, 20))
-
-    tk.Label(frame_datos, text="Departamento:", font=font_style, bg=bg_color).grid(row=0, column=2)
-    departamento_entry = tk.Entry(frame_datos, font=font_style)
-    departamento_entry.grid(row=0, column=3, padx=(0, 20))
-
-    tk.Label(frame_datos, text="Municipio:", font=font_style, bg=bg_color).grid(row=0, column=4)
-    municipio_entry = tk.Entry(frame_datos, font=font_style)
-    municipio_entry.grid(row=0, column=5, pady=20)   
 
 
-    tk.Label(frame_datos, text="Objeto Social:", font=font_style, bg=bg_color).grid(row=1, column=0)
-    objeto_social_entry = tk.Entry(frame_datos, font=font_style)
-    objeto_social_entry.grid(row=1, column=1, columnspan=5, sticky="we", pady=20)
+def validar_campos():
+    if not nombre_entry.get() or not municipio_entry.get() or not departamento_entry.get() or not fecha_pago_entry.get() or not objeto_social_entry.get():
+        messagebox.showwarning("Campos Vacíos", "Por favor, complete todos los campos del formulario.")
+        return False
+    return True
 
-    tk.Label(frame_datos, text="Fecha de Pago:", font=font_style, bg=bg_color).grid(row=2, column=0)
-    opciones_pago = ["los días 30 de cada mes", "los días 15 y 30 de cada mes", "catorcenales", "semanales"]
-    fecha_pago_entry = ttk.Combobox(frame_datos, values=opciones_pago, font=font_style, state="readonly")
-    fecha_pago_entry.grid(row=2, column=1,columnspan=5, sticky="we", pady=20)
-    fecha_pago_entry.set("Seleccione una opción")
-
-    # Configurar la fuente del menú desplegable
-    ventana.option_add('*TCombobox*Listbox.font', font_style)   
+def on_submit():        
+    if validar_campos():
+        print("Documento generado")
+    nombre = nombre_entry.get()
+    municipio = municipio_entry.get()
+    departamento = departamento_entry.get()
+    objeto_social = objeto_social_entry.get()
+    fecha_pago = fecha_pago_entry.get()
     
+    # Obtener el orden jerárquico
+    orden_jerarquico = capturar_orden_jerarquico(orden_jerarquico_vars)
+    print("Orden jerárquico seleccionado:", orden_jerarquico)
 
-    # Frame para los checkbuttons (Horario de trabajo)
-    frame_horarios = tk.Frame(ventana)
-    frame_horarios.pack(padx=10, pady=10)
-
-    tk.Label(frame_horarios, text="Horario de trabajo:").grid(row=0, column=0)
-
-    operativo_var = tk.IntVar()
-    administrativo_var = tk.IntVar()
-
-    operativo_cb = tk.Checkbutton(frame_horarios, text="Horario de trabajo personal operativo", variable=operativo_var, command=lambda: generar_tabla())
-    operativo_cb.grid(row=1, column=0, sticky="w")
-
-    administrativo_cb = tk.Checkbutton(frame_horarios, text="Horario de trabajo personal administrativo", variable=administrativo_var, command=lambda: generar_tabla())
-    administrativo_cb.grid(row=2, column=0, sticky="w")
-
-
-
-    # Frame para la tabla
-    table_frame = tk.Frame(ventana)
-    table_frame.pack(padx=10, pady=10)
+    # Construir la cadena de horarios seleccionados
+    horarios = []
+    if operativo_var.get():
+        horarios.append({"tipo": "Operativo", "horario": "Horario de trabajo personal operativo"})
+    if administrativo_var.get():
+        horarios.append({"tipo": "Administrativo", "horario": "Horario de trabajo personal administrativo"})
     
+    # Generar la tabla automáticamente
+    generar_tabla()
 
-    # Función para manejar el envío de datos
-    def on_submit():        
+    # Reemplazar datos en la plantilla
+    reemplazar_datos_en_plantilla(nombre, municipio, departamento, objeto_social, fecha_pago, horarios, orden_jerarquico)
 
-        nombre = nombre_entry.get()
-        municipio = municipio_entry.get()
-        departamento = departamento_entry.get()
-        objeto_social = objeto_social_entry.get()
-        fecha_pago = fecha_pago_entry.get()
+# Definición de la interfaz gráfica
+ventana = tk.Tk()
+ventana.title("Formulario de Datos")
+ventana.configure(bg='#b0d4ec')
 
-        # Construir la cadena de horarios seleccionados
-        horarios = []
-        if operativo_var.get():
-            horarios.append("Horario de trabajo personal operativo")
-        if administrativo_var.get():
-            horarios.append("Horario de trabajo personal administrativo")
+# Configurar la ventana para que sea responsive
+ventana.columnconfigure(0, weight=1)
+ventana.rowconfigure(0, weight=1)
 
-        # Generar la tabla automáticamente
-        generar_tabla()
 
-        # Reemplazar datos en la plantilla
-        reemplazar_datos_en_plantilla(nombre, municipio, departamento, objeto_social, fecha_pago, horarios)
+font_style = ("Helvetica", 14, "italic")
+bg_color = '#b0d4ec'
 
-    # Frame para el botón de enviar
-    frame_botones = tk.Frame(ventana)
-    frame_botones.pack(padx=10, pady=10)
+# Frame para los datos personales (Nombre, Municipio, Departamento)
+frame_datos = tk.Frame(ventana, bg=bg_color)
+frame_datos.grid(padx=10, pady=10, sticky="nsew")
 
-    # Botón para enviar el formulario
-    submit_button = tk.Button(frame_botones, text="Generar Documento", command=on_submit)
-    submit_button.grid(row=0, column=0)
-    
-    # Frame para la tabla
-    table_frame = tk.Frame(ventana)
-    table_frame.pack(padx=10, pady=10)
 
-    # Iniciar el bucle de la aplicación Tkinter
-    ventana.mainloop()
+for i in range(6):
+    frame_datos.columnconfigure(i, weight=1)
 
-# Llamar a la función para crear el formulario
-crear_formulario()
+
+tk.Label(frame_datos, text="Nombre Empresa:", font=font_style, bg=bg_color).grid(row=0, column=0, sticky="e")
+nombre_entry = tk.Entry(frame_datos, font=font_style)
+nombre_entry.grid(row=0, column=1, padx=(0, 20), sticky="ew")
+
+tk.Label(frame_datos, text="Departamento:", font=font_style, bg=bg_color).grid(row=0, column=2, sticky="e")
+departamento_entry = tk.Entry(frame_datos, font=font_style)
+departamento_entry.grid(row=0, column=3, padx=(0, 20), sticky="ew")
+
+tk.Label(frame_datos, text="Municipio:", font=font_style, bg=bg_color).grid(row=0, column=4, sticky="e")
+municipio_entry = tk.Entry(frame_datos, font=font_style)
+municipio_entry.grid(row=0, column=5, pady=20, sticky="ew")   
+
+tk.Label(frame_datos, text="Objeto Social:", font=font_style, bg=bg_color).grid(row=1, column=0, sticky="e")
+objeto_social_entry = tk.Entry(frame_datos, font=font_style)
+objeto_social_entry.grid(row=1, column=1, columnspan=5, sticky="ew", pady=20)
+
+tk.Label(frame_datos, text="Fecha de Pago:", font=font_style, bg=bg_color).grid(row=2, column=0, sticky="e")
+opciones_pago = ["los días 30 de cada mes", "los días 15 y 30 de cada mes", "catorcenales", "semanales"]
+fecha_pago_entry = ttk.Combobox(frame_datos, values=opciones_pago, font=font_style, state="readonly")
+fecha_pago_entry.grid(row=2, column=1, columnspan=5, sticky="ew", pady=20)
+fecha_pago_entry.set("Seleccione una opción")
+
+# Configurar la fuente del menú desplegable
+ventana.option_add('*TCombobox*Listbox.font', font_style)   
+
+# Frame para los checkbuttons (Horario de trabajo)
+frame_horarios = tk.Frame(ventana, bg=bg_color)
+frame_horarios.grid(row=1, column=0, sticky="nsew")
+
+# Configurar las filas para que sean responsivas
+frame_horarios.rowconfigure(0, weight=1)
+
+tk.Label(frame_horarios, text="Horario de trabajo:", bg=bg_color, font=font_style).grid(row=0, column=0, sticky="w")
+
+operativo_var = tk.IntVar()
+administrativo_var = tk.IntVar()
+
+operativo_cb = tk.Checkbutton(frame_horarios, text="Horario de trabajo personal operativo", variable=operativo_var, command=lambda: generar_tabla(), bg=bg_color, font=font_style)
+operativo_cb.grid(row=1, column=0, sticky="w")
+
+administrativo_cb = tk.Checkbutton(frame_horarios, text="Horario de trabajo personal administrativo", variable=administrativo_var, command=lambda: generar_tabla(), bg=bg_color, font=font_style)
+administrativo_cb.grid(row=2, column=0, sticky="w")
+
+# Frame para la tabla
+table_frame = tk.Frame(ventana)
+table_frame.grid(row=3, column=0, padx=10, pady=10, sticky="nsew")
+
+# Frame para los checkbuttons (Orden Jerárquico)
+frame_orden_jerarquico = tk.Frame(ventana, bg=bg_color)
+frame_orden_jerarquico.grid(padx=10, pady=10, sticky="nsew")
+
+tk.Label(frame_orden_jerarquico, text="Orden Jerárquico:", bg=bg_color, font=font_style).grid(row=0, column=0, sticky="w")
+
+# Variables para los checkbuttons
+gerente_var = tk.IntVar()
+subgerente_var = tk.IntVar()
+lider_talento_humano_var = tk.IntVar()
+coordinador_sistemas_var = tk.IntVar()
+lider_operativo_var = tk.IntVar()
+supervisores_var = tk.IntVar()
+operarios_manual_var = tk.IntVar()
+
+# Diccionario para las variables de los checkbuttons
+orden_jerarquico_vars = {
+    "Gerente": gerente_var,
+    "Subgerente": subgerente_var,
+    "Líder de talento humano": lider_talento_humano_var,
+    "Coordinador de sistemas integrados de gestión": coordinador_sistemas_var,
+    "Líder Operativo": lider_operativo_var,
+    "Supervisores": supervisores_var,
+    "Operarios manual": operarios_manual_var
+}
+
+# Crear los checkbuttons
+gerente_cb = tk.Checkbutton(frame_orden_jerarquico, text="Gerente", variable=gerente_var, bg=bg_color, font=font_style)
+gerente_cb.grid(row=1, column=0, sticky="w")
+
+subgerente_cb = tk.Checkbutton(frame_orden_jerarquico, text="Subgerente", variable=subgerente_var, bg=bg_color, font=font_style)
+subgerente_cb.grid(row=2, column=0, sticky="w")
+
+lider_talento_humano_cb = tk.Checkbutton(frame_orden_jerarquico, text="Líder de talento humano", variable=lider_talento_humano_var, bg=bg_color, font=font_style)
+lider_talento_humano_cb.grid(row=3, column=0, sticky="w")
+
+coordinador_sistemas_cb = tk.Checkbutton(frame_orden_jerarquico, text="Coordinador de sistemas integrados de gestión", variable=coordinador_sistemas_var, bg=bg_color, font=font_style)
+coordinador_sistemas_cb.grid(row=4, column=0, sticky="w")
+
+lider_operativo_cb = tk.Checkbutton(frame_orden_jerarquico, text="Líder Operativo", variable=lider_operativo_var, bg=bg_color, font=font_style)
+lider_operativo_cb.grid(row=5, column=0, sticky="w")
+
+supervisores_cb = tk.Checkbutton(frame_orden_jerarquico, text="Supervisores", variable=supervisores_var, bg=bg_color, font=font_style)
+supervisores_cb.grid(row=6, column=0, sticky="w")
+
+operarios_manual_cb = tk.Checkbutton(frame_orden_jerarquico, text="Operarios manual", variable=operarios_manual_var, bg=bg_color, font=font_style)
+operarios_manual_cb.grid(row=7, column=0, sticky="w")
+
+# Frame para el botón de enviar
+frame_botones = tk.Frame(ventana, bg=bg_color)
+frame_botones.grid(row=9, column=0, padx=10, pady=10, sticky="ew")
+
+
+# Botón para enviar el formulario
+submit_button = tk.Button(frame_botones, text="Generar Documento", command=on_submit)
+submit_button.grid(row=0, column=0, pady=10, padx=10)
+
+# Aplicar estilos al botón
+submit_button.config(bg="blue", fg="white", font=("Helvetica", 12, "bold"))
+
+# Iniciar el bucle de la aplicación Tkinter
+ventana.mainloop()
