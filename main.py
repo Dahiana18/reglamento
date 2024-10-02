@@ -90,6 +90,7 @@ def reemplazar_datos_en_plantilla(nombre, municipio, departamento, objeto_social
 
     # Guardar el documento modificado
     doc.save('documento_completado.docx')
+    print("Documento generado correctamente")  # Mensaje de confirmación
 
 entry_widgets = [] 
 
@@ -158,24 +159,46 @@ def on_submit():
 
     # Reemplazar datos en la plantilla
     reemplazar_datos_en_plantilla(nombre, municipio, departamento, objeto_social, fecha_pago, horarios, orden_jerarquico)
+    
+    # Mostrar mensaje de confirmación
+    messagebox.showinfo("Éxito", "El documento se ha generado correctamente.")
 
 # Definición de la interfaz gráfica
 ventana = tk.Tk()
 ventana.title("Formulario de Datos")
 ventana.configure(bg='#b0d4ec')
 
-# Configurar la ventana para que sea responsive
-ventana.columnconfigure(0, weight=1)
-ventana.rowconfigure(0, weight=1)
 
+# Crear un canvas y un frame para el contenido
+canvas = tk.Canvas(ventana, bg='#b0d4ec')
+scroll_y = tk.Scrollbar(ventana, orient="vertical", command=canvas.yview)
+scroll_x = tk.Scrollbar(ventana, orient="horizontal", command=canvas.xview)
+
+# Frame que contendrá todos los widgets
+frame_contenido = tk.Frame(canvas, bg='#b0d4ec')
+
+# Configurar el canvas
+canvas.create_window((0, 0), window=frame_contenido, anchor="nw")
+canvas.configure(yscrollcommand=scroll_y.set, xscrollcommand=scroll_x.set)
+
+# Empaquetar el canvas y la scrollbar
+canvas.grid(row=0, column=0, sticky="nsew")
+scroll_y.grid(row=0, column=1, sticky="ns")
+scroll_x.grid(row=1, column=0, sticky="ew")
+
+# Configurar la expansión del canvas
+ventana.grid_rowconfigure(0, weight=1)
+ventana.grid_columnconfigure(0, weight=1)
+
+# Actualizar el tamaño del canvas para que se ajuste al contenido
+frame_contenido.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
 
 font_style = ("Helvetica", 14, "italic")
 bg_color = '#b0d4ec'
 
 # Frame para los datos personales (Nombre, Municipio, Departamento)
-frame_datos = tk.Frame(ventana, bg=bg_color)
+frame_datos = tk.Frame(frame_contenido, bg=bg_color)
 frame_datos.grid(padx=10, pady=10, sticky="nsew")
-
 
 for i in range(6):
     frame_datos.columnconfigure(i, weight=1)
