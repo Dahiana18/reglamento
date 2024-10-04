@@ -18,8 +18,8 @@ def insertar_tabla(doc, paragraph, horarios):
     # Añadir filas con datos
     for horario in horarios:
         row_cells = table.add_row().cells
-        row_cells[0].text = horario
-        row_cells[1].text = horario
+        row_cells[0].text = horario["tipo"]	
+        row_cells[1].text = horario["horario"]
     
     # Mover la tabla al lugar correcto
     tbl = table._tbl
@@ -122,6 +122,16 @@ def generar_tabla():
         entry.grid(row=row, column=1)
         entry_widgets.append(("Horario de trabajo personal administrativo", entry))
         row += 1
+    
+    # Función para obtener los datos de las entradas
+    def obtener_datos():
+        datos = {}
+        for label, entry in entry_widgets:
+            datos[label] = entry.get()
+        return datos
+
+    # Retornar los datos obtenidos
+    return obtener_datos()
 
 def crear_formulario():  
 
@@ -150,9 +160,9 @@ def on_submit():
     # Construir la cadena de horarios seleccionados
     horarios = []
     if operativo_var.get():
-        horarios.append({"tipo": "Operativo", "horario": "Horario de trabajo personal operativo"})
+        horarios.append({"tipo": "Horario de trabajo personal operativo", "horario": ""})
     if administrativo_var.get():
-        horarios.append({"tipo": "Administrativo", "horario": "Horario de trabajo personal administrativo"})
+        horarios.append({"tipo": "Horario de trabajo personal administrativo", "horario": ""})
     
     # Generar la tabla automáticamente
     generar_tabla()
