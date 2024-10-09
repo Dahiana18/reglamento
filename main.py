@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 from docx import Document
 from docx.oxml import OxmlElement
-from docx.shared import RGBColor
+from docx.shared import RGBColor, Pt
 from docx.oxml.ns import qn
 from tkinter import messagebox
 
@@ -12,18 +12,22 @@ def insertar_tabla(doc, paragraph, horarios):
     
     # Añadir encabezados
     hdr_cells = table.rows[0].cells
-    hdr_cells[0].text = 'Tipo de Horario'
-    hdr_cells[1].text = 'Turno'
-    hdr_cells[2].text = 'Horario'
-    hdr_cells[3].text = 'Días'
+    headers = ['Tipo de Horario', 'Turno', 'Horario', 'Días']
+    for i, header in enumerate(headers):
+        hdr_cells[i].text = header
+        run = hdr_cells[i].paragraphs[0].runs[0]
+        run.font.name = 'Arial'
+        run.font.size = Pt(11)
     
     # Añadir filas con datos
     for horario in horarios:
         row_cells = table.add_row().cells
-        row_cells[0].text = horario['tipo']
-        row_cells[1].text = horario['turno']
-        row_cells[2].text = horario['horario']
-        row_cells[3].text = horario['dias']
+        row_data = [horario['tipo'], horario['turno'], horario['horario'], horario['dias']]
+        for i, data in enumerate(row_data):
+            row_cells[i].text = data
+            run = row_cells[i].paragraphs[0].runs[0]
+            run.font.name = 'Arial'
+            run.font.size = Pt(11)
     
     # Mover la tabla al lugar correcto
     tbl = table._tbl
@@ -48,7 +52,14 @@ def capturar_orden_jerarquico(orden_jerarquico_vars):
             seleccionados.append(rol)
     return seleccionados
 
-def reemplazar_datos_en_plantilla(nombre, municipio, departamento, objeto_social, fecha_pago, horarios, orden_jerarquico):
+def capturar_imponer_sanciones(imponer_sanciones_vars):
+    seleccionados = []
+    for rol, var in imponer_sanciones_vars.items():
+        if var.get():
+            seleccionados.append(rol)
+    return seleccionados
+
+def reemplazar_datos_en_plantilla(nombre, municipio, departamento, objeto_social, fecha_pago, horarios, orden_jerarquico, imponer_sanciones):
     # Cargar el documento de Word
     doc = Document('template.docx')
     
@@ -79,7 +90,12 @@ def reemplazar_datos_en_plantilla(nombre, municipio, departamento, objeto_social
                 run.text = run.text.replace('|OBJETO_SOCIAL|', objeto_social) 
             
             if "|ORDEN_JERARQUICO|" in p.text:
-                p.text = p.text.replace("|ORDEN_JERARQUICO|", ", ".join(orden_jerarquico))
+                orden_jerarquico_numerado = "\n".join([f"{i+1}. {rol}" for i, rol in enumerate(orden_jerarquico)])
+                p.text = p.text.replace("|ORDEN_JERARQUICO|", orden_jerarquico_numerado)
+                
+            if "|IMPONER_SANCIONES|" in p.text:
+                imponer_sanciones_numerado = "\n".join([f"{i+1}. {rol}" for i, rol in enumerate(imponer_sanciones)])
+                p.text = p.text.replace("|IMPONER_SANCIONES|", imponer_sanciones_numerado)
 
     for p in doc.paragraphs:
         if "|HORARIO|" in p.text:
@@ -91,22 +107,42 @@ def reemplazar_datos_en_plantilla(nombre, municipio, departamento, objeto_social
     doc.save('documento_completado.docx')
     print("Documento generado correctamente")  # Mensaje de confirmación
 
+# Definición de la interfaz gráfica
+ventana = tk.Tk()
+ventana.title("Formulario de Datos")
+ventana.configure(bg='#b0d4ec')
+
+# Crear variables de tkinter después de crear la ventana principal
+operativo_var = tk.IntVar()
+administrativo_var = tk.IntVar()
+
 entry_widgets = [] 
 
-def agregar_fila(tipo):
+def agregar_linea(event):
+    widget = event.widget
+    widget.insert(tk.END, "\n")
+
+def agregar_fila(tipo, row=None):
     global table_frame, entry_widgets
-    row = len(entry_widgets) + 1
+    if row is None:
+        row = len(entry_widgets) + 1
     font_settings = ("Helvetica", 14)
     entry_width = 20
 
     tk.Label(table_frame, text=tipo, font=font_settings).grid(row=row, column=0)
-    entry_horario = tk.Entry(table_frame, font=font_settings, width=entry_width)
-    entry_horario.grid(row=row, column=1)
     entry_turno = tk.Entry(table_frame, font=font_settings, width=entry_width)
-    entry_turno.grid(row=row, column=2)
+    entry_turno.grid(row=row, column=1)
+    entry_turno.bind("<Return>", agregar_fila_manual)
+    
+    entry_horario = tk.Entry(table_frame, font=font_settings, width=entry_width)
+    entry_horario.grid(row=row, column=2)
+    entry_horario.bind("<Return>", agregar_fila_manual)
+    
     entry_dias = tk.Entry(table_frame, font=font_settings, width=entry_width)
     entry_dias.grid(row=row, column=3)
-    entry_widgets.append({"tipo": tipo, "entry_horario": entry_horario, "entry_turno": entry_turno, "entry_dias": entry_dias})
+    entry_dias.bind("<Return>", agregar_fila_manual)
+    
+    entry_widgets.append({"tipo": tipo, "entry_turno": entry_turno, "entry_horario": entry_horario, "entry_dias": entry_dias})
 
 def generar_tabla():
     global table_frame, entry_widgets  # Asegúrate de que table_frame y entry_widgets estén accesibles
@@ -120,16 +156,39 @@ def generar_tabla():
     entry_width = 20
 
     tk.Label(table_frame, text="Tipo de Horario", font=font_settings).grid(row=row, column=0)
-    tk.Label(table_frame, text="Horario", font=font_settings).grid(row=row, column=1)
-    tk.Label(table_frame, text="Turno", font=font_settings).grid(row=row, column=2)
+    tk.Label(table_frame, text="Turno", font=font_settings).grid(row=row, column=1)
+    tk.Label(table_frame, text="Horario", font=font_settings).grid(row=row, column=2)
     tk.Label(table_frame, text="Días", font=font_settings).grid(row=row, column=3)
     row += 1
     
     if operativo_var.get():
-        agregar_fila("Operativo")
+        agregar_fila("Operativo", row)
+        row += 1
 
     if administrativo_var.get():
-        agregar_fila("Administrativo")
+        agregar_fila("Administrativo", row)
+
+# Variables globales para rastrear las últimas filas de Operativo y Administrativo
+last_operativo_row = -1
+last_administrativo_row = -1
+
+def agregar_fila_manual(event=None):
+    global entry_widgets, last_operativo_row, last_administrativo_row
+
+    if operativo_var.get():
+        if last_operativo_row == -1:
+            agregar_fila("Operativo", 1)
+            last_operativo_row = 1
+        else:
+            last_operativo_row += 1
+            agregar_fila("Operativo", last_operativo_row + 1)
+    elif administrativo_var.get():
+        if last_administrativo_row == -1:
+            agregar_fila("Administrativo", 1)
+            last_administrativo_row = 1
+        else:
+            last_administrativo_row += 1
+            agregar_fila("Administrativo", last_administrativo_row + 1)
 
 def crear_formulario():  
     global nombre_entry, municipio_entry, departamento_entry, fecha_pago_entry, operativo_var, administrativo_var, objeto_social_entry, table_frame
@@ -152,27 +211,27 @@ def on_submit():
     # Obtener el orden jerárquico
     orden_jerarquico = capturar_orden_jerarquico(orden_jerarquico_vars)
     print("Orden jerárquico seleccionado:", orden_jerarquico)
+    
+    # Obtener imponer sanciones
+    imponer_sanciones = capturar_imponer_sanciones(imponer_sanciones_vars)
+    print("imponer sanciones seleccionado:",  imponer_sanciones)
+
 
     # Construir la cadena de horarios seleccionados
     horarios = []
     for item in entry_widgets:
         horarios.append({
             "tipo": item["tipo"], 
-            "horario": item["entry_horario"].get(),
             "turno": item["entry_turno"].get(),
+            "horario": item["entry_horario"].get(),
             "dias": item["entry_dias"].get()
         })
     
     # Reemplazar datos en la plantilla
-    reemplazar_datos_en_plantilla(nombre, municipio, departamento, objeto_social, fecha_pago, horarios, orden_jerarquico)
+    reemplazar_datos_en_plantilla(nombre, municipio, departamento, objeto_social, fecha_pago, horarios, orden_jerarquico, imponer_sanciones)
     
     # Mostrar mensaje de confirmación
     messagebox.showinfo("Éxito", "El documento se ha generado correctamente.")
-
-# Definición de la interfaz gráfica
-ventana = tk.Tk()
-ventana.title("Formulario de Datos")
-ventana.configure(bg='#b0d4ec')
 
 # Crear un canvas y un frame para el contenido
 canvas = tk.Canvas(ventana, bg='#b0d4ec')
@@ -242,22 +301,15 @@ frame_horarios.rowconfigure(0, weight=1)
 
 tk.Label(frame_horarios, text="Horario de trabajo:", bg=bg_color, font=font_style).grid(row=0, column=0, sticky="w")
 
-operativo_var = tk.IntVar()
-administrativo_var = tk.IntVar()
-
-operativo_cb = tk.Checkbutton(frame_horarios, text="Horario de trabajo personal operativo", variable=operativo_var, command=lambda: generar_tabla(), bg=bg_color, font=font_style)
+operativo_cb = tk.Checkbutton(frame_horarios, text="Horario de trabajo personal operativo", variable=operativo_var, command=generar_tabla, bg=bg_color, font=font_style)
 operativo_cb.grid(row=1, column=0, sticky="w")
 
-administrativo_cb = tk.Checkbutton(frame_horarios, text="Horario de trabajo personal administrativo", variable=administrativo_var, command=lambda: generar_tabla(), bg=bg_color, font=font_style)
+administrativo_cb = tk.Checkbutton(frame_horarios, text="Horario de trabajo personal administrativo", variable=administrativo_var, command=generar_tabla, bg=bg_color, font=font_style)
 administrativo_cb.grid(row=2, column=0, sticky="w")
 
 # Frame para la tabla
 table_frame = tk.Frame(frame_contenido)
 table_frame.grid(row=3, column=0, padx=10, pady=10, sticky="nsew")
-
-# Botón para agregar filas
-add_row_button = tk.Button(frame_contenido, text="Agregar Fila", command=lambda: agregar_fila("Operativo" if operativo_var.get() else "Administrativo"))
-add_row_button.grid(row=4, column=0, pady=10, padx=10)
 
 # Frame para los checkbuttons (Orden Jerárquico)
 frame_orden_jerarquico = tk.Frame(frame_contenido, bg=bg_color)
@@ -306,6 +358,40 @@ supervisores_cb.grid(row=6, column=0, sticky="w")
 
 operarios_manual_cb = tk.Checkbutton(frame_orden_jerarquico, text="Operarios manual", variable=operarios_manual_var, bg=bg_color, font=font_style)
 operarios_manual_cb.grid(row=7, column=0, sticky="w")
+
+# Frame para los checkbuttons (Imponer sanciones)
+frame_imponer_sanciones = tk.Frame(frame_contenido, bg=bg_color)
+frame_imponer_sanciones.grid(padx=10, pady=10, sticky="nsew")
+
+tk.Label(frame_imponer_sanciones, text="Imponer sanciones:", bg=bg_color, font=font_style).grid(row=0, column=0, sticky="w")
+
+# Variables para los checkbuttons
+gerente_var = tk.IntVar()
+subgerente_var = tk.IntVar()
+lider_talento_humano_var = tk.IntVar()
+supervisores_var = tk.IntVar()
+
+
+# Diccionario para las variables de los checkbuttons
+imponer_sanciones_vars = {
+    "Gerente": gerente_var,
+    "Subgerente": subgerente_var,
+    "Líder de talento humano": lider_talento_humano_var,    
+    "Supervisores": supervisores_var,    
+}
+# Crear los checkbuttons
+gerente_cb = tk.Checkbutton(frame_imponer_sanciones, text="Gerente", variable=gerente_var, bg=bg_color, font=font_style)
+gerente_cb.grid(row=1, column=0, sticky="w")
+
+subgerente_cb = tk.Checkbutton(frame_imponer_sanciones, text="Subgerente", variable=subgerente_var, bg=bg_color, font=font_style)
+subgerente_cb.grid(row=2, column=0, sticky="w")
+
+lider_talento_humano_cb = tk.Checkbutton(frame_imponer_sanciones, text="Líder de talento humano", variable=lider_talento_humano_var, bg=bg_color, font=font_style)
+lider_talento_humano_cb.grid(row=3, column=0, sticky="w")
+
+supervisores_cb = tk.Checkbutton(frame_imponer_sanciones, text="Supervisores", variable=supervisores_var, bg=bg_color, font=font_style)
+supervisores_cb.grid(row=6, column=0, sticky="w")
+
 
 # Frame para el botón de enviar
 frame_botones = tk.Frame(frame_contenido, bg=bg_color)
