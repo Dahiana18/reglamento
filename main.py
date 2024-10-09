@@ -7,19 +7,23 @@ from docx.oxml.ns import qn
 from tkinter import messagebox
 
 def insertar_tabla(doc, paragraph, horarios):
-    # Añadir una tabla con 2 columnas y tantas filas como elementos en horarios
-    table = doc.add_table(rows=1, cols=2)
+    # Añadir una tabla con 4 columnas y tantas filas como elementos en horarios
+    table = doc.add_table(rows=1, cols=4)
     
     # Añadir encabezados
     hdr_cells = table.rows[0].cells
     hdr_cells[0].text = 'Tipo de Horario'
-    hdr_cells[1].text = 'Horario'
+    hdr_cells[1].text = 'Turno'
+    hdr_cells[2].text = 'Horario'
+    hdr_cells[3].text = 'Días'
     
     # Añadir filas con datos
     for horario in horarios:
         row_cells = table.add_row().cells
-        row_cells[0].text = horario
-        row_cells[1].text = horario
+        row_cells[0].text = horario['tipo']
+        row_cells[1].text = horario['turno']
+        row_cells[2].text = horario['horario']
+        row_cells[3].text = horario['dias']
     
     # Mover la tabla al lugar correcto
     tbl = table._tbl
@@ -77,16 +81,11 @@ def reemplazar_datos_en_plantilla(nombre, municipio, departamento, objeto_social
             if "|ORDEN_JERARQUICO|" in p.text:
                 p.text = p.text.replace("|ORDEN_JERARQUICO|", ", ".join(orden_jerarquico))
 
-                    
-            
-
     for p in doc.paragraphs:
-
         if "|HORARIO|" in p.text:
             p.text = p.text.replace('|HORARIO|', "")
             insertar_tabla(doc, p, horarios)
             break  # Salir del bucle después de insertar la tabla
-        
 
     # Guardar el documento modificado
     doc.save('documento_completado.docx')
@@ -94,8 +93,23 @@ def reemplazar_datos_en_plantilla(nombre, municipio, departamento, objeto_social
 
 entry_widgets = [] 
 
+def agregar_fila(tipo):
+    global table_frame, entry_widgets
+    row = len(entry_widgets) + 1
+    font_settings = ("Helvetica", 14)
+    entry_width = 20
+
+    tk.Label(table_frame, text=tipo, font=font_settings).grid(row=row, column=0)
+    entry_horario = tk.Entry(table_frame, font=font_settings, width=entry_width)
+    entry_horario.grid(row=row, column=1)
+    entry_turno = tk.Entry(table_frame, font=font_settings, width=entry_width)
+    entry_turno.grid(row=row, column=2)
+    entry_dias = tk.Entry(table_frame, font=font_settings, width=entry_width)
+    entry_dias.grid(row=row, column=3)
+    entry_widgets.append({"tipo": tipo, "entry_horario": entry_horario, "entry_turno": entry_turno, "entry_dias": entry_dias})
+
 def generar_tabla():
-    global table_frame  # Asegúrate de que table_frame esté accesible
+    global table_frame, entry_widgets  # Asegúrate de que table_frame y entry_widgets estén accesibles
     for widget in table_frame.winfo_children():
         widget.destroy()
 
@@ -103,30 +117,22 @@ def generar_tabla():
     
     row = 0
     font_settings = ("Helvetica", 14)
-    entry_width = 30
+    entry_width = 20
 
-    tk.Label(table_frame, text="Tipo de Horario",font=font_settings).grid(row=row, column=0)
-    tk.Label(table_frame, text="Horario",font=font_settings).grid(row=row, column=1)
+    tk.Label(table_frame, text="Tipo de Horario", font=font_settings).grid(row=row, column=0)
+    tk.Label(table_frame, text="Horario", font=font_settings).grid(row=row, column=1)
+    tk.Label(table_frame, text="Turno", font=font_settings).grid(row=row, column=2)
+    tk.Label(table_frame, text="Días", font=font_settings).grid(row=row, column=3)
     row += 1
     
     if operativo_var.get():
-        tk.Label(table_frame, text="Horario de trabajo personal operativo", font=font_settings).grid(row=row, column=0)
-        entry = tk.Entry(table_frame, font=font_settings, width=entry_width)
-        entry.grid(row=row, column=1)
-        entry_widgets.append(("Horario de trabajo personal operativo", entry))
-        row += 1
+        agregar_fila("Operativo")
 
     if administrativo_var.get():
-        tk.Label(table_frame, text="Horario de trabajo personal administrativo", font=font_settings).grid(row=row, column=0)
-        entry = tk.Entry(table_frame, font=font_settings, width=entry_width)
-        entry.grid(row=row, column=1)
-        entry_widgets.append(("Horario de trabajo personal administrativo", entry))
-        row += 1
+        agregar_fila("Administrativo")
 
 def crear_formulario():  
-
     global nombre_entry, municipio_entry, departamento_entry, fecha_pago_entry, operativo_var, administrativo_var, objeto_social_entry, table_frame
-
 
 def validar_campos():
     if not nombre_entry.get() or not municipio_entry.get() or not departamento_entry.get() or not fecha_pago_entry.get() or not objeto_social_entry.get():
@@ -149,14 +155,14 @@ def on_submit():
 
     # Construir la cadena de horarios seleccionados
     horarios = []
-    if operativo_var.get():
-        horarios.append({"tipo": "Operativo", "horario": "Horario de trabajo personal operativo"})
-    if administrativo_var.get():
-        horarios.append({"tipo": "Administrativo", "horario": "Horario de trabajo personal administrativo"})
+    for item in entry_widgets:
+        horarios.append({
+            "tipo": item["tipo"], 
+            "horario": item["entry_horario"].get(),
+            "turno": item["entry_turno"].get(),
+            "dias": item["entry_dias"].get()
+        })
     
-    # Generar la tabla automáticamente
-    generar_tabla()
-
     # Reemplazar datos en la plantilla
     reemplazar_datos_en_plantilla(nombre, municipio, departamento, objeto_social, fecha_pago, horarios, orden_jerarquico)
     
@@ -167,7 +173,6 @@ def on_submit():
 ventana = tk.Tk()
 ventana.title("Formulario de Datos")
 ventana.configure(bg='#b0d4ec')
-
 
 # Crear un canvas y un frame para el contenido
 canvas = tk.Canvas(ventana, bg='#b0d4ec')
@@ -203,7 +208,6 @@ frame_datos.grid(padx=10, pady=10, sticky="nsew")
 for i in range(6):
     frame_datos.columnconfigure(i, weight=1)
 
-
 tk.Label(frame_datos, text="Nombre Empresa:", font=font_style, bg=bg_color).grid(row=0, column=0, sticky="e")
 nombre_entry = tk.Entry(frame_datos, font=font_style)
 nombre_entry.grid(row=0, column=1, padx=(0, 20), sticky="ew")
@@ -230,7 +234,7 @@ fecha_pago_entry.set("Seleccione una opción")
 ventana.option_add('*TCombobox*Listbox.font', font_style)   
 
 # Frame para los checkbuttons (Horario de trabajo)
-frame_horarios = tk.Frame(ventana, bg=bg_color)
+frame_horarios = tk.Frame(frame_contenido, bg=bg_color)
 frame_horarios.grid(row=1, column=0, sticky="nsew")
 
 # Configurar las filas para que sean responsivas
@@ -248,11 +252,15 @@ administrativo_cb = tk.Checkbutton(frame_horarios, text="Horario de trabajo pers
 administrativo_cb.grid(row=2, column=0, sticky="w")
 
 # Frame para la tabla
-table_frame = tk.Frame(ventana)
+table_frame = tk.Frame(frame_contenido)
 table_frame.grid(row=3, column=0, padx=10, pady=10, sticky="nsew")
 
+# Botón para agregar filas
+add_row_button = tk.Button(frame_contenido, text="Agregar Fila", command=lambda: agregar_fila("Operativo" if operativo_var.get() else "Administrativo"))
+add_row_button.grid(row=4, column=0, pady=10, padx=10)
+
 # Frame para los checkbuttons (Orden Jerárquico)
-frame_orden_jerarquico = tk.Frame(ventana, bg=bg_color)
+frame_orden_jerarquico = tk.Frame(frame_contenido, bg=bg_color)
 frame_orden_jerarquico.grid(padx=10, pady=10, sticky="nsew")
 
 tk.Label(frame_orden_jerarquico, text="Orden Jerárquico:", bg=bg_color, font=font_style).grid(row=0, column=0, sticky="w")
@@ -300,9 +308,8 @@ operarios_manual_cb = tk.Checkbutton(frame_orden_jerarquico, text="Operarios man
 operarios_manual_cb.grid(row=7, column=0, sticky="w")
 
 # Frame para el botón de enviar
-frame_botones = tk.Frame(ventana, bg=bg_color)
+frame_botones = tk.Frame(frame_contenido, bg=bg_color)
 frame_botones.grid(row=9, column=0, padx=10, pady=10, sticky="ew")
-
 
 # Botón para enviar el formulario
 submit_button = tk.Button(frame_botones, text="Generar Documento", command=on_submit)
