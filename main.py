@@ -1,10 +1,11 @@
 import tkinter as tk
 from tkinter import ttk
 from docx import Document
-from docx.oxml import OxmlElement
+# from docx.oxml import OxmlElement
 from docx.shared import RGBColor, Pt
-from docx.oxml.ns import qn
+#from docx.oxml.ns import qn
 from tkinter import messagebox
+import pandas as pd
 
 def insertar_tabla(doc, paragraph, horarios):
     # Añadir una tabla con 4 columnas y tantas filas como elementos en horarios
@@ -59,7 +60,7 @@ def capturar_imponer_sanciones(imponer_sanciones_vars):
             seleccionados.append(rol)
     return seleccionados
 
-def reemplazar_datos_en_plantilla(nombre, municipio, departamento, objeto_social, fecha_pago, horarios, orden_jerarquico, imponer_sanciones):
+def reemplazar_datos_en_plantilla(nombre, municipio, departamento, objeto_social, fecha_pago, horarios, orden_jerarquico, imponer_sanciones, municipio1, fecha1, fecha2, representante_legal):
     # Cargar el documento de Word
     doc = Document('template.docx')
     
@@ -96,6 +97,18 @@ def reemplazar_datos_en_plantilla(nombre, municipio, departamento, objeto_social
             if "|IMPONER_SANCIONES|" in p.text:
                 imponer_sanciones_numerado = "\n".join([f"{i+1}. {rol}" for i, rol in enumerate(imponer_sanciones)])
                 p.text = p.text.replace("|IMPONER_SANCIONES|", imponer_sanciones_numerado)
+                
+            if "|MUNICIPIO1|" in run.text:
+                run.text = run.text.replace('|MUNICIPIO1|', municipio1)               
+            
+            if "|FECHA1|" in run.text:
+                run.text = run.text.replace('|FECHA1|', fecha1)
+                
+            if "|FECHA2|" in run.text:
+                run.text = run.text.replace('|FECHA2|', fecha2)
+            
+            if "|REPRESENTANTE_LEGAL|" in run.text and isinstance(representante_legal, str):
+                run.text = run.text.replace('|REPRESENTANTE_LEGAL|', representante_legal) 
 
     for p in doc.paragraphs:
         if "|HORARIO|" in p.text:
@@ -175,20 +188,25 @@ last_administrativo_row = -1
 def agregar_fila_manual(event=None):
     global entry_widgets, last_operativo_row, last_administrativo_row
 
+    # Encuentra la última fila de "Operativo" y "Administrativo"
+    last_operativo_row = max([i for i, item in enumerate(entry_widgets) if item["tipo"] == "Operativo"], default=-1)
+    last_administrativo_row = max([i for i, item in enumerate(entry_widgets) if item["tipo"] == "Administrativo"], default=-1)
+
+    # Agrega una fila debajo de "Operativo" si el checkbutton está seleccionado
     if operativo_var.get():
         if last_operativo_row == -1:
             agregar_fila("Operativo", 1)
-            last_operativo_row = 1
         else:
-            last_operativo_row += 1
-            agregar_fila("Operativo", last_operativo_row + 1)
-    elif administrativo_var.get():
+            agregar_fila("Operativo", last_operativo_row + 2)
+            last_operativo_row += 1  # Actualiza la última fila de "Operativo"
+
+    # Agrega una fila debajo de "Administrativo" si el checkbutton está seleccionado
+    if administrativo_var.get():
         if last_administrativo_row == -1:
             agregar_fila("Administrativo", 1)
-            last_administrativo_row = 1
         else:
-            last_administrativo_row += 1
-            agregar_fila("Administrativo", last_administrativo_row + 1)
+            agregar_fila("Administrativo", last_administrativo_row + 2)
+            last_administrativo_row += 1  # Actualiza la última fila de "Administrativo"
 
 def crear_formulario():  
     global nombre_entry, municipio_entry, departamento_entry, fecha_pago_entry, operativo_var, administrativo_var, objeto_social_entry, table_frame
@@ -207,6 +225,10 @@ def on_submit():
     departamento = departamento_entry.get()
     objeto_social = objeto_social_entry.get()
     fecha_pago = fecha_pago_entry.get()
+    municipio1 = municipio1_entry.get()    
+    fecha1 = fecha1_entry.get()
+    fecha2 = fecha2_entry.get()
+    representante_legal = representante_legal_entry.get()
     
     # Obtener el orden jerárquico
     orden_jerarquico = capturar_orden_jerarquico(orden_jerarquico_vars)
@@ -228,7 +250,7 @@ def on_submit():
         })
     
     # Reemplazar datos en la plantilla
-    reemplazar_datos_en_plantilla(nombre, municipio, departamento, objeto_social, fecha_pago, horarios, orden_jerarquico, imponer_sanciones)
+    reemplazar_datos_en_plantilla(nombre, municipio, departamento, objeto_social, fecha_pago, horarios, orden_jerarquico, imponer_sanciones, municipio1, fecha1, fecha2, representante_legal)
     
     # Mostrar mensaje de confirmación
     messagebox.showinfo("Éxito", "El documento se ha generado correctamente.")
@@ -267,34 +289,46 @@ frame_datos.grid(padx=10, pady=10, sticky="nsew")
 for i in range(6):
     frame_datos.columnconfigure(i, weight=1)
 
+# Nombre Empresa
 tk.Label(frame_datos, text="Nombre Empresa:", font=font_style, bg=bg_color).grid(row=0, column=0, sticky="e")
 nombre_entry = tk.Entry(frame_datos, font=font_style)
 nombre_entry.grid(row=0, column=1, padx=(0, 20), sticky="ew")
 
+# Departamento
 tk.Label(frame_datos, text="Departamento:", font=font_style, bg=bg_color).grid(row=0, column=2, sticky="e")
 departamento_entry = tk.Entry(frame_datos, font=font_style)
 departamento_entry.grid(row=0, column=3, padx=(0, 20), sticky="ew")
 
+# Municipio
 tk.Label(frame_datos, text="Municipio:", font=font_style, bg=bg_color).grid(row=0, column=4, sticky="e")
 municipio_entry = tk.Entry(frame_datos, font=font_style)
-municipio_entry.grid(row=0, column=5, pady=20, sticky="ew")   
+municipio_entry.grid(row=0, column=5, pady=20, sticky="ew")
 
-tk.Label(frame_datos, text="Objeto Social:", font=font_style, bg=bg_color).grid(row=1, column=0, sticky="e")
+# Frame para el subtítulo y las cajas de texto (CAPITULO V)
+frame_capitulo_v = tk.Frame(frame_contenido, bg=bg_color)
+frame_capitulo_v.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
+
+tk.Label(frame_capitulo_v, text="CAPITULO V", font=font_style, bg=bg_color).grid(row=0, column=0, columnspan=2, sticky="w")
+
+tk.Label(frame_capitulo_v, text="MUNICIPIO1:", font=font_style, bg=bg_color).grid(row=1, column=0, sticky="e")
+municipio1_entry = tk.Entry(frame_capitulo_v, font=font_style)
+municipio1_entry.grid(row=1, column=1, pady=20, sticky="ew")
+
+# Objeto Social
+tk.Label(frame_datos, text="Objeto Social:", font=font_style, bg=bg_color).grid(row=2, column=0, sticky="e")
 objeto_social_entry = tk.Entry(frame_datos, font=font_style)
-objeto_social_entry.grid(row=1, column=1, columnspan=5, sticky="ew", pady=20)
+objeto_social_entry.grid(row=2, column=1, columnspan=5, sticky="ew", pady=20)
 
-tk.Label(frame_datos, text="Fecha de Pago:", font=font_style, bg=bg_color).grid(row=2, column=0, sticky="e")
+# Fecha de Pago
+tk.Label(frame_datos, text="Fecha de Pago:", font=font_style, bg=bg_color).grid(row=3, column=0, sticky="e")
 opciones_pago = ["los días 30 de cada mes", "los días 15 y 30 de cada mes", "catorcenales", "semanales"]
 fecha_pago_entry = ttk.Combobox(frame_datos, values=opciones_pago, font=font_style, state="readonly")
-fecha_pago_entry.grid(row=2, column=1, columnspan=5, sticky="ew", pady=20)
+fecha_pago_entry.grid(row=3, column=1, columnspan=5, sticky="ew", pady=20)
 fecha_pago_entry.set("Seleccione una opción")
-
-# Configurar la fuente del menú desplegable
-ventana.option_add('*TCombobox*Listbox.font', font_style)   
 
 # Frame para los checkbuttons (Horario de trabajo)
 frame_horarios = tk.Frame(frame_contenido, bg=bg_color)
-frame_horarios.grid(row=1, column=0, sticky="nsew")
+frame_horarios.grid(row=4, column=0, sticky="nsew")
 
 # Configurar las filas para que sean responsivas
 frame_horarios.rowconfigure(0, weight=1)
@@ -310,6 +344,10 @@ administrativo_cb.grid(row=2, column=0, sticky="w")
 # Frame para la tabla
 table_frame = tk.Frame(frame_contenido)
 table_frame.grid(row=3, column=0, padx=10, pady=10, sticky="nsew")
+
+
+# Configurar la fuente del menú desplegable
+ventana.option_add('*TCombobox*Listbox.font', font_style)
 
 # Frame para los checkbuttons (Orden Jerárquico)
 frame_orden_jerarquico = tk.Frame(frame_contenido, bg=bg_color)
@@ -363,6 +401,7 @@ operarios_manual_cb.grid(row=7, column=0, sticky="w")
 frame_imponer_sanciones = tk.Frame(frame_contenido, bg=bg_color)
 frame_imponer_sanciones.grid(padx=10, pady=10, sticky="nsew")
 
+
 tk.Label(frame_imponer_sanciones, text="Imponer sanciones:", bg=bg_color, font=font_style).grid(row=0, column=0, sticky="w")
 
 # Variables para los checkbuttons
@@ -392,10 +431,29 @@ lider_talento_humano_cb.grid(row=3, column=0, sticky="w")
 supervisores_cb = tk.Checkbutton(frame_imponer_sanciones, text="Supervisores", variable=supervisores_var, bg=bg_color, font=font_style)
 supervisores_cb.grid(row=6, column=0, sticky="w")
 
+# Frame para el subtítulo y las cajas de texto (PUBLICACIONES Y VIGENCIA)
+frame_publicaciones_vigencia = tk.Frame(frame_contenido, bg=bg_color)
+frame_publicaciones_vigencia.grid(row=9, column=0, padx=10, pady=10, sticky="nsew")
+
+tk.Label(frame_publicaciones_vigencia, text="PUBLICACIONES Y VIGENCIA", font=font_style, bg=bg_color).grid(row=0, column=0, columnspan=2, sticky="w")
+
+tk.Label(frame_publicaciones_vigencia, text="FECHA1:", font=font_style, bg=bg_color).grid(row=1, column=0, sticky="e")
+fecha1_entry = tk.Entry(frame_publicaciones_vigencia, font=font_style)
+fecha1_entry.grid(row=1, column=1, pady=20, sticky="ew")
+
+tk.Label(frame_publicaciones_vigencia, text="FECHA2:", font=font_style, bg=bg_color).grid(row=2, column=0, sticky="e")
+fecha2_entry = tk.Entry(frame_publicaciones_vigencia, font=font_style)
+fecha2_entry.grid(row=2, column=1, pady=20, sticky="ew")
+
+# Representante Legal
+tk.Label(frame_contenido, text="Representante Legal:", font=font_style, bg=bg_color).grid(row=10, column=0, sticky="e")
+representante_legal_entry = tk.Entry(frame_contenido, font=font_style)
+representante_legal_entry.grid(row=10, column=1, padx=10, pady=10, sticky="ew")
 
 # Frame para el botón de enviar
 frame_botones = tk.Frame(frame_contenido, bg=bg_color)
-frame_botones.grid(row=9, column=0, padx=10, pady=10, sticky="ew")
+frame_botones.grid(row=11, column=0, padx=10, pady=10, sticky="ew")
+
 
 # Botón para enviar el formulario
 submit_button = tk.Button(frame_botones, text="Generar Documento", command=on_submit)
